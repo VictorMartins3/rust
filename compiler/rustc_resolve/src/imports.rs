@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::mem;
 
 use rustc_ast::NodeId;
+use rustc_attr_ir::Deprecation;
 use rustc_data_structures::fx::{FxHashSet, FxIndexSet};
 use rustc_data_structures::intern::Interned;
 use rustc_errors::{Applicability, BufferedEarlyLint, Diagnostic};
@@ -208,6 +209,10 @@ pub(crate) struct ImportData<'ra> {
     ///
     /// This is `None` if the feature flag for `diagnostic::on_unknown` is disabled.
     pub on_unknown_attr: Option<OnUnknownData>,
+
+    /// A `#[deprecated]` attribute applied to the `use` item, reported when a name
+    /// is resolved through this import.
+    pub deprecation: Option<Deprecation>,
 }
 
 /// `Interned` is used because values of this type have "identity" and compare as unequal even if

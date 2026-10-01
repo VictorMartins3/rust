@@ -13,8 +13,8 @@ use rustc_ast::{
     DelegationSource, Fn, ForeignItem, ForeignItemKind, Inline, Item, ItemKind, NodeId, StaticItem,
     StmtKind, TraitAlias, TyAlias,
 };
-use rustc_attr_ir::{Attribute, AttributeKind, MacroUseArgs};
-use rustc_attr_parsing::AttributeParser;
+use rustc_attr_ir::{Attribute, AttributeKind, Deprecation, MacroUseArgs};
+use rustc_attr_parsing::{AttributeParser, ShouldEmit};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_data_structures::sync::WriteGuard;
 use rustc_expand::base::{ResolverExpand, SyntaxExtension, SyntaxExtensionKind};
@@ -564,6 +564,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
             vis,
             vis_span: item.vis.span,
             on_unknown_attr: OnUnknownData::from_attrs(self.r, &item.attrs),
+            deprecation: self.deprecation_from_attrs(&item.attrs, item.span),
         });
 
         self.r.indeterminate_imports.push((import, None, 0));
@@ -1053,6 +1054,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
             vis,
             vis_span: item.vis.span,
             on_unknown_attr: OnUnknownData::from_attrs(self.r, &item.attrs),
+            deprecation: self.deprecation_from_attrs(&item.attrs, item.span),
         });
         if used {
             self.r.import_use_map.insert(import, Used::Other);
@@ -1146,6 +1148,22 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
         }
     }
 
+    fn deprecation_from_attrs(&self, attrs: &[ast::Attribute], span: Span) -> Option<Deprecation> {
+        match AttributeParser::parse_limited_sym_should_emit(
+            self.r.tcx.sess,
+            attrs,
+            &[sym::deprecated],
+            span,
+            Some(self.r.features),
+            ShouldEmit::Nothing,
+        ) {
+            Some(Attribute::Parsed(AttributeKind::Deprecated { deprecation, .. })) => {
+                Some(deprecation)
+            }
+            _ => None,
+        }
+    }
+
     /// Returns `true` if we should consider the underlying `extern crate` to be used.
     fn process_macro_use_imports(&mut self, item: &Item, module: Module<'ra>) -> bool {
         let mut import_all = None;
@@ -1185,6 +1203,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                 vis: Visibility::Restricted(CRATE_MOD_ID),
                 vis_span: item.vis.span,
                 on_unknown_attr: OnUnknownData::from_attrs(this.r, &item.attrs),
+                deprecation: None,
             })
         };
 
@@ -1366,6 +1385,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                     vis,
                     vis_span: item.vis.span,
                     on_unknown_attr: OnUnknownData::from_attrs(self.r, &item.attrs),
+                    deprecation: None,
                 });
                 self.r.import_use_map.insert(import, Used::Other);
                 let import_decl = self.r.new_import_decl(decl, import);

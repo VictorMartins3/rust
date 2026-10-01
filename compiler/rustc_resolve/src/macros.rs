@@ -1104,11 +1104,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
         if let Some(depr) = &ext.deprecation {
             let path = pprust::path_to_string(path);
-            stability::early_report_macro_deprecation(
+            stability::early_report_deprecation(
                 &mut self.lint_buffer,
                 depr,
                 span,
                 node_id,
+                "macro",
                 path,
             );
         }

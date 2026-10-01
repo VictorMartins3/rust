@@ -1397,6 +1397,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 .insert((OrdSpan(path_span), OrdSpan(binding.span)));
         }
 
+        self.report_deprecated_reexport(ident, binding, finalize.node_id);
         self.record_use(ident, binding, used);
         return Ok(binding);
     }

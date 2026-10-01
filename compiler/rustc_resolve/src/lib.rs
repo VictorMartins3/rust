@@ -65,6 +65,7 @@ use rustc_middle::middle::resolve::{
     AmbigModChild, DelegationInfo, DelegationInherentFnKind, DocLinkResMap, MainDefinition,
     ModChild, PartialRes, PerOwnerResolverData, Reexport, ResolverAstLowering, ResolverGlobalCtxt,
 };
+use rustc_middle::middle::stability;
 use rustc_middle::query::Providers;
 use rustc_middle::ty::{self, RegisteredTools, TyCtxt, TyCtxtFeed, Visibility};
 use rustc_span::def_id::{LocalModId, ModId};
@@ -1429,6 +1430,9 @@ pub struct Resolver<'ra, 'tcx> {
     glob_error: Option<ErrorGuaranteed> = None,
     visibilities_for_hashing: Vec<(LocalDefId, Visibility)> = Vec::new(),
     used_imports: FxHashSet<NodeId> = default::fx_hash_set(),
+    /// Uses of deprecated reexports that were already reported, a name can be finalized
+    /// once per namespace.
+    reported_deprecated_reexports: FxHashSet<(NodeId, Span)> = default::fx_hash_set(),
     maybe_unused_trait_imports: FxIndexSet<LocalDefId>,
 
     /// Privacy errors are delayed until the end in order to deduplicate them.
@@ -2353,6 +2357,49 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             self.add_to_glob_map(import, ident.name);
             self.record_use(ident, source_decl, Used::Other);
         }
+    }
+
+    /// Reports a use of `ident` that goes through a `#[deprecated]` import or reexport.
+    /// Only the outermost deprecated link of the reexport chain is reported.
+    fn report_deprecated_reexport(&mut self, ident: Ident, decl: Decl<'ra>, node_id: NodeId) {
+        // The name under which the next link of the chain is known, it changes on renames.
+        let mut name = ident.name;
+        let mut next_decl = decl;
+        let depr = loop {
+            match next_decl.kind {
+                DeclKind::Import { import, source_decl } => {
+                    if let Some(depr) = import.deprecation {
+                        break depr;
+                    }
+                    if let ImportKind::Single { source, .. } = import.kind {
+                        name = source.name;
+                    }
+                    next_decl = source_decl;
+                }
+                DeclKind::Def(_, reexport_chain) => {
+                    let Some(depr) = reexport_chain
+                        .iter()
+                        .filter_map(|reexport| reexport.id())
+                        .filter(|def_id| !def_id.is_local())
+                        .find_map(|def_id| self.tcx.lookup_deprecation(def_id))
+                    else {
+                        return;
+                    };
+                    break depr;
+                }
+            }
+        };
+        if !self.reported_deprecated_reexports.insert((node_id, ident.span)) {
+            return;
+        }
+        stability::early_report_deprecation(
+            &mut self.lint_buffer,
+            &depr,
+            ident.span,
+            node_id,
+            "re-export",
+            name.to_string(),
+        );
     }
 
     #[inline]

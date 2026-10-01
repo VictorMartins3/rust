@@ -1515,6 +1515,14 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 self.encode_const_stability(def_id);
                 self.encode_default_body_stability(def_id);
                 self.encode_deprecation(def_id);
+            } else if let DefKind::Use | DefKind::ExternCrate = def_kind {
+                // Reexports can be deprecated, see `report_deprecated_reexport` in the resolver.
+                // Unlike items they don't inherit deprecation from their parent module.
+                if let Some(depr) =
+                    find_attr!(tcx, local_id, Deprecated { deprecation, .. } => *deprecation)
+                {
+                    record!(self.tables.lookup_deprecation_entry[def_id] <- depr);
+                }
             }
             if should_encode_variances(tcx, def_id, def_kind) {
                 let v = self.tcx.variances_of(def_id);

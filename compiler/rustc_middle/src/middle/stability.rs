@@ -175,11 +175,12 @@ fn deprecated_since_kind(is_in_effect: bool, since: DeprecatedSince) -> Deprecat
     }
 }
 
-pub fn early_report_macro_deprecation(
+pub fn early_report_deprecation(
     lint_buffer: &mut LintBuffer,
     depr: &Deprecation,
     suggestion_span: Span,
     node_id: NodeId,
+    kind: &'static str,
     path: String,
 ) {
     if suggestion_span.in_derive_expansion() {
@@ -197,12 +198,11 @@ pub fn early_report_macro_deprecation(
         move |dcx, level| {
             let sub = suggestion.map(|suggestion| DeprecationSuggestion {
                 span: suggestion_span,
-                kind: "macro".to_owned(),
+                kind: kind.to_owned(),
                 suggestion,
             });
 
-            Deprecated { sub, kind: "macro".to_owned(), path, note, since_kind }
-                .into_diag(dcx, level)
+            Deprecated { sub, kind: kind.to_owned(), path, note, since_kind }.into_diag(dcx, level)
         },
     );
 }

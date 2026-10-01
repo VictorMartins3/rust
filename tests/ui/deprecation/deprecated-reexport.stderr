@@ -1,0 +1,56 @@
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:16:12
+   |
+LL | use local::Bar;
+   |            ^^^
+   |
+note: the lint level is defined here
+  --> $DIR/deprecated-reexport.rs:5:9
+   |
+LL | #![deny(deprecated)]
+   |         ^^^^^^^^^^
+
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:19:10
+   |
+LL | use ext::Bar as ExtBar;
+   |          ^^^
+
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:24:13
+   |
+LL |     let _ = Bar;
+   |             ^^^
+
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:25:20
+   |
+LL |     let _ = local::Bar;
+   |                    ^^^
+
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:28:13
+   |
+LL |     let _ = ExtBar;
+   |             ^^^^^^
+
+error: use of deprecated re-export `Bar`: use `Foo` instead
+  --> $DIR/deprecated-reexport.rs:29:18
+   |
+LL |     let _ = ext::Bar;
+   |                  ^^^
+
+error: use of deprecated re-export `bar`: use `foo` instead
+  --> $DIR/deprecated-reexport.rs:30:10
+   |
+LL |     ext::bar();
+   |          ^^^
+
+error: use of deprecated re-export `Baz`
+  --> $DIR/deprecated-reexport.rs:31:18
+   |
+LL |     let _ = ext::Baz;
+   |                  ^^^
+
+error: aborting due to 8 previous errors
+
